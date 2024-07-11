@@ -1,0 +1,53 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZamudioPilot</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>ZamudioPilot - Remote Control for Your Computer</h1>
+    
+    <h2>Volume Control</h2>
+    <button onclick="sendCommand('volume', 'up')">Volume Up</button>
+    <button onclick="sendCommand('volume', 'down')">Volume Down</button>
+    <button onclick="sendCommand('volume', 'mute')">Mute</button>
+    
+    <h2>Media Playback Control</h2>
+    <button onclick="sendCommand('media', 'play_pause')">Play/Pause</button>
+    <button onclick="sendCommand('media', 'next')">Next</button>
+    <button onclick="sendCommand('media', 'prev')">Previous</button>
+    
+    <h2>Keyboard Input</h2>
+    <input type="text" id="keyboard-input" placeholder="Type something and press Send">
+    <button onclick="sendKeyboard()">Send</button>
+
+    <h2>Mouse Control</h2>
+    <div>
+        <button onclick="sendMouse('up')">⬆</button>
+        <br>
+        <button onclick="sendMouse('left')">⬅</button>
+        <button onclick="sendMouse('click')">Click</button>
+        <button onclick="sendMouse('right')">⮕</button>
+        <br>
+        <button onclick="sendMouse('down')">⬇</button>
+    </div>
+
+    <script>
+        const socket = io();
+
+        function sendCommand(type, data) {
+            socket.emit(type, data);
+        }
+
+        function sendKeyboard() {
+            const input = document.getElementById('keyboard-input').value;
+            socket.emit('keyboard', input);
+        }
+
+        function sendMouse(direction) {
+            socket.emit('mouse', { direction });
+        }
+    </script>
+</body>
+</html>
