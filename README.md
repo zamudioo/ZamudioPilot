@@ -21,7 +21,7 @@ ZamudioPilot is a tool that allows you to control your computer (volume, media p
 1. Clone this repository:
 
 ```bash
-git clone https://github.com/your-username/zamudiopilot.git
+git clone https://github.com/zamudioo/zamudiopilot.git
 cd zamudiopilot
 ```
 
