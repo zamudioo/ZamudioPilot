@@ -54,5 +54,5 @@ prev: Previous track
 ### Keyboard
 Type any text in the input field and press "Send".
 ### Mouse
-move: Move to a specific position (e.g., 100, 100)
+move arround the screen with the arrows
 click: Click at the current mouse position
