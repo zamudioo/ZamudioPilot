@@ -36,7 +36,7 @@ python zamudiopilot.py
 
 Access to the designes url given by the console from your web browser or mobile device.
 ## Usage
-Server
+###Server
 The zamudiopilot.py file is the main server that handles control requests and executes them on the computer.
 
 ## Client
@@ -54,5 +54,5 @@ prev: Previous track
 ### Keyboard
 Type any text in the input field and press "Send".
 ### Mouse
-move arround the screen with the arrows
+move arround the screen with the arrows,, its a lil bit slow but i will change that later.
 click: Click at the current mouse position
