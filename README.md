@@ -7,7 +7,7 @@ ZamudioPilot is a tool that allows you to control your computer (volume, media p
 - Volume control (up, down, mute)
 - Media playback control (play/pause, next, previous)
 - Keyboard input
-- Mouse control (move and click)
+- Mouse control (move, click and scroll)
 
 ## Installation
 
@@ -34,7 +34,7 @@ Run the server:
 python zamudiopilot.py
 ```
 
-Access to the designes url given by the console from your web browser or mobile device.
+Access to the url given on the console
 ## Usage
 ###Server
 The zamudiopilot.py file is the main server that handles control requests and executes them on the computer.
@@ -54,5 +54,5 @@ prev: Previous track
 ### Keyboard
 Type any text in the input field and press "Send".
 ### Mouse
-move arround the screen with the arrows,, its a lil bit slow but i will change that later.
-click: Click at the current mouse position
+move around your screen with a trackpad.
+(works like a regular trackpad, with functions like scroll, drag, etc.)
