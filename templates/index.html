@@ -14,11 +14,7 @@
       align-items: center;
       padding: 20px;
     }
-
-    h1 {
-      margin-bottom: 20px;
-    }
-
+    h1 { margin-bottom: 20px; }
     .section {
       background-color: #2c2c2c;
       border-radius: 12px;
@@ -28,11 +24,7 @@
       max-width: 400px;
       box-shadow: 0 0 10px #000;
     }
-
-    .section h2 {
-      margin-top: 0;
-    }
-
+    .section h2 { margin-top: 0; }
     button {
       background-color: #444;
       border: none;
@@ -42,9 +34,7 @@
       cursor: pointer;
       transition: 0.2s;
     }
-    button:hover {
-      background-color: #666;
-    }
+    button:hover { background-color: #666; }
     input[type="text"] {
       padding: 10px;
       width: 70%;
@@ -52,7 +42,6 @@
       border: none;
       margin-right: 5px;
     }
-
     #trackpad {
       width: 100%;
       height: 300px;
@@ -63,7 +52,6 @@
       touch-action: none;
       user-select: none;
     }
-
     #mouse-buttons {
       display: flex;
       width: 100%;
@@ -75,9 +63,7 @@
       margin: 0;
       border-radius: 0 0 8px 8px;
     }
-    #mouse-buttons button:first-child {
-      border-right: 1px solid #333;
-    }
+    #mouse-buttons button:first-child { border-right: 1px solid #333; }
   </style>
 </head>
 <body>
@@ -107,8 +93,9 @@
     <h2>Mouse (Trackpad)</h2>
     <div id="trackpad"></div>
     <div id="mouse-buttons">
-      <button id="left-btn"></button>
-      <button id="right-btn"></button>
+      <!-- La zona del botón izquierdo ahora se usa para iniciar el drag -->
+      <button id="left-btn">⏴</button>
+      <button id="right-btn" onclick="socket.emit('mouse_click', { button: 'right' })">⏵</button>
     </div>
   </div>
 
@@ -122,91 +109,104 @@
       const text = document.getElementById('keyboard-input').value;
       socket.emit('keyboard', text);
     }
-    document.getElementById('left-btn').addEventListener('click', () => {
-      socket.emit('mouse_click', { button: 'left' });
-    });
-    document.getElementById('right-btn').addEventListener('click', () => {
-      socket.emit('mouse_click', { button: 'right' });
-    });
 
-    // TRACKPAD GESTURES
+    
+    let leftButtonDown = false;
+    const MOVE_THRESHOLD = 5;
+
+   
+    leftBtn.addEventListener('pointerdown', e => {
+      leftButtonDown = true;
+      socket.emit('mouse_down', { button: 'left' });
+    });
+    leftBtn.addEventListener('pointerup', e => {
+      leftButtonDown = false;
+      socket.emit('mouse_up', { button: 'left' });
+    });
+   
     const trackpad = document.getElementById('trackpad');
     let pointers = new Map();
-    let mode = 'none'; // 'drag' | 'scroll'
-    let lastX = 0, lastY = 0, lastScrollY = 0;
-    let twoFingerTap = false, gestureStart = 0;
-    const TAP_TIME = 200;    // ms
-    const TAP_MOVE = 10;     // px
-    let initialPositions = new Map();
+    let initialTouch = null;    
+    let didMove = false;       
+    let twoFingerTap = false, gestureStart = 0, initialPositions = new Map();
+    let lastScrollY = 0;
+    const TAP_TIME = 200;  
 
     trackpad.addEventListener('pointerdown', e => {
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      trackpad.setPointerCapture(e.pointerId);
+
       if (pointers.size === 1) {
-        mode = 'drag';
-        lastX = e.clientX; lastY = e.clientY;
-        socket.emit('mouse_down', { button: 'left' });
+        
+        initialTouch = { x: e.clientX, y: e.clientY };
+        didMove = false;
       } else if (pointers.size === 2) {
-        // cancel possible drag
-        if (mode === 'drag') {
-          socket.emit('mouse_up', { button: 'left' });
-        }
-        mode = 'scroll';
+       
         twoFingerTap = true;
         gestureStart = Date.now();
-        // save initial positions
         initialPositions = new Map(pointers);
-        // init scroll reference
         const ys = Array.from(pointers.values()).map(p => p.y);
         lastScrollY = (ys[0] + ys[1]) / 2;
       }
-      trackpad.setPointerCapture(e.pointerId);
     });
 
     trackpad.addEventListener('pointermove', e => {
       if (!pointers.has(e.pointerId)) return;
-      if (mode === 'drag' && pointers.size === 1) {
-        const dx = e.clientX - lastX;
-        const dy = e.clientY - lastY;
-        lastX = e.clientX; lastY = e.clientY;
-        socket.emit('mouse_move', { dx, dy });
-      } else if (mode === 'scroll' && pointers.size === 2) {
-        // check tap movement
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (pointers.size === 2) {
+       
         if (twoFingerTap) {
           const init = initialPositions.get(e.pointerId);
-          if (Math.hypot(e.clientX - init.x, e.clientY - init.y) > TAP_MOVE) {
+          if (Math.hypot(e.clientX - init.x, e.clientY - init.y) > MOVE_THRESHOLD) {
             twoFingerTap = false;
           }
         }
-        // update pointer
-        pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         const ys = Array.from(pointers.values()).map(p => p.y);
         const avgY = (ys[0] + ys[1]) / 2;
         const dy = avgY - lastScrollY;
         lastScrollY = avgY;
         socket.emit('mouse_scroll', { dy: -dy });
+      } else if (pointers.size === 1) {
+       
+        if (initialTouch) {
+          const dx = e.clientX - initialTouch.x;
+          const dy = e.clientY - initialTouch.y;
+          if (Math.hypot(dx, dy) > MOVE_THRESHOLD) {
+            didMove = true;
+          }
+        }
+       
+        socket.emit('mouse_move', { dx: e.movementX, dy: e.movementY });
       }
     });
 
     trackpad.addEventListener('pointerup', e => {
-      if (!pointers.has(e.pointerId)) return;
       pointers.delete(e.pointerId);
-      if (mode === 'drag' && pointers.size === 0) {
-        socket.emit('mouse_up', { button: 'left' });
-        mode = 'none';
-      } else if (mode === 'scroll' && pointers.size === 0) {
+      trackpad.releasePointerCapture(e.pointerId);
+
+      if (pointers.size === 0) {
+      
+        if (!leftButtonDown && !didMove) {
+          socket.emit('mouse_click', { button: 'left' });
+        }
+        
         if (twoFingerTap && (Date.now() - gestureStart) < TAP_TIME) {
           socket.emit('mouse_click', { button: 'right' });
         }
-        mode = 'none';
+
+        initialTouch = null;
+        didMove = false;
+        twoFingerTap = false;
       }
-      trackpad.releasePointerCapture(e.pointerId);
     });
 
     trackpad.addEventListener('pointercancel', e => {
-      // limpiar estado
       pointers.clear();
-      if (mode === 'drag') socket.emit('mouse_up', { button: 'left' });
-      mode = 'none';
+      trackpad.releasePointerCapture(e.pointerId);
+      initialTouch = null;
+      didMove = false;
+      twoFingerTap = false;
     });
   </script>
 </body>
