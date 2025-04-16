@@ -1,8 +1,11 @@
 # zamudiopilot.py
+
 from flask import Flask, render_template
 from flask_socketio import SocketIO
 import pyautogui
 import socket
+
+SCROLL_FACTOR = 5  # puedes cambiar valores hasta q se acomode el scroll
 
 app = Flask(__name__)
 socketio = SocketIO(app)
@@ -33,34 +36,51 @@ def handle_media(data):
 def handle_keyboard(data):
     pyautogui.write(data)
 
-@socketio.on('mouse')
-def handle_mouse(data):
-    direction = data['direction']
-    distance = 10  # Movimiento en píxeles
-    if direction == 'up':
-        pyautogui.move(0, -distance)
-    elif direction == 'down':
-        pyautogui.move(0, distance)
-    elif direction == 'left':
-        pyautogui.move(-distance, 0)
-    elif direction == 'right':
-        pyautogui.move(distance, 0)
-    elif direction == 'click':
-        pyautogui.click()
+@socketio.on('mouse_move')
+def handle_mouse_move(data):
+    dx = data.get('dx', 0)
+    dy = data.get('dy', 0)
+    pyautogui.moveRel(dx, dy)
+
+@socketio.on('mouse_click')
+def handle_mouse_click(data):
+    button = data.get('button', 'left')
+    pyautogui.click(button=button)
+
+@socketio.on('mouse_down')
+def handle_mouse_down(data):
+    button = data.get('button', 'left')
+    pyautogui.mouseDown(button=button)
+
+@socketio.on('mouse_up')
+def handle_mouse_up(data):
+    button = data.get('button', 'left')
+    pyautogui.mouseUp(button=button)
+
+@socketio.on('mouse_scroll')
+def handle_mouse_scroll(data):
+    # Convertimos y aplicamos el factor de velocidad
+    raw_dy = data.get('dy', 0)
+    try:
+        dy = int(raw_dy) * SCROLL_FACTOR
+    except (TypeError, ValueError):
+        dy = 0
+    if dy != 0:
+        pyautogui.scroll(dy)
 
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        s.connect(('10.254.254.254', 1))
-        IP = s.getsockname()[0]
+        s.connect(('10.255.255.255', 1))
+        ip = s.getsockname()[0]
     except Exception:
-        IP = '127.0.0.1'
+        ip = '127.0.0.1'
     finally:
         s.close()
-    return IP
+    return ip
 
 if __name__ == '__main__':
     ip = get_local_ip()
     port = 5000
-    print(f'Server running at http://{ip}:{port}')
+    print(f'Servidor corriendo en http://{ip}:{port}')
     socketio.run(app, host='0.0.0.0', port=port)
