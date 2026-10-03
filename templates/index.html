@@ -2,212 +2,527 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>control</title>
+  <title>ZamudioPilot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
   <style>
+    :root {
+      --bg:           #090d12;
+      --surface:      #0e1420;
+      --surface2:     #162030;
+      --surface3:     #1e2d40;
+      --border:       rgba(77,157,224,0.12);
+      --border-hi:    rgba(77,157,224,0.28);
+      --accent:       #4d9de0;
+      --accent-dim:   rgba(77,157,224,0.15);
+      --text:         #dce9f7;
+      --text-muted:   #5a7a9a;
+      --key-bg:       #1a2535;
+      --key-sp:       #21324a;
+      --danger:       #e05555;
+      --r-sm: 8px; --r-md: 14px; --r-lg: 20px; --r-xl: 26px;
+    }
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
     body {
-      background-color: #1e1e1e;
-      font-family: 'Segoe UI', sans-serif;
-      color: white;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
+      font-family:'Sora',sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      display:flex; justify-content:center; align-items:center;
+      height:100dvh; overflow:hidden;
+      padding-top:env(safe-area-inset-top);
     }
-    h1 { margin-bottom: 20px; }
-    .section {
-      background-color: #2c2c2c;
-      border-radius: 12px;
-      padding: 15px;
-      margin: 10px 0;
-      width: 90%;
-      max-width: 400px;
-      box-shadow: 0 0 10px #000;
+
+    .wrap {
+      position:relative;
+      width:100%; max-width:430px; height:100%;
+      background:var(--surface);
+      display:flex; flex-direction:column;
+      overflow:hidden;
     }
-    .section h2 { margin-top: 0; }
-    button {
-      background-color: #444;
-      border: none;
-      padding: 10px;
-      margin: 5px;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: 0.2s;
+
+    /* ── Top bar ─────────────────────────────────────── */
+    .top-bar {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 18px 10px;
+      border-bottom:1px solid var(--border);
+      flex-shrink:0;
     }
-    button:hover { background-color: #666; }
-    input[type="text"] {
-      padding: 10px;
-      width: 70%;
-      border-radius: 8px;
-      border: none;
-      margin-right: 5px;
+    .app-name {
+      font-size:.7rem; font-weight:600;
+      letter-spacing:.14em; text-transform:uppercase;
+      color:var(--text-muted);
     }
-    #trackpad {
-      width: 100%;
-      height: 300px;
-      background-color: #111;
-      border: 2px dashed #555;
-      border-radius: 12px;
-      position: relative;
-      touch-action: none;
-      user-select: none;
+    .status {
+      display:flex; align-items:center; gap:6px;
+      font-size:.62rem; color:var(--text-muted);
     }
-    #mouse-buttons {
-      display: flex;
-      width: 100%;
-      margin-top: 10px;
+    .dot {
+      width:7px; height:7px; border-radius:50%;
+      background:#22c55e; box-shadow:0 0 7px #22c55e;
+      transition:background .3s, box-shadow .3s;
     }
-    #mouse-buttons button {
-      flex: 1;
-      height: 50px;
-      margin: 0;
-      border-radius: 0 0 8px 8px;
+    .dot.off { background:var(--danger); box-shadow:0 0 7px var(--danger); }
+
+    /* ── Control groups ─────────────────────────────── */
+    .controls {
+      display:grid; grid-template-columns:repeat(3,1fr);
+      gap:10px; padding:12px 14px;
+      flex-shrink:0;
     }
-    #mouse-buttons button:first-child { border-right: 1px solid #333; }
+    .group {
+      background:var(--surface2);
+      border:1px solid var(--border);
+      border-radius:var(--r-md);
+      padding:10px 6px 8px;
+      display:flex; flex-direction:column; align-items:center; gap:7px;
+    }
+    .group-label {
+      font-size:.52rem; font-weight:600;
+      letter-spacing:.1em; text-transform:uppercase;
+      color:var(--text-muted);
+    }
+    .cb {
+      width:46px; height:46px; border-radius:50%;
+      border:1px solid var(--border);
+      background:var(--surface3);
+      color:var(--text); font-size:1.15rem;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; user-select:none;
+      transition:background .12s, transform .1s, border-color .12s;
+    }
+    .cb:active {
+      background:var(--accent-dim);
+      border-color:var(--border-hi);
+      transform:scale(0.88);
+    }
+
+    /* ── Trackpad ────────────────────────────────────── */
+    .tp-section {
+      flex:1; display:flex; flex-direction:column;
+      align-items:center; padding:8px 14px 10px; gap:10px;
+      min-height:0;
+    }
+    .trackpad {
+      flex:1; width:100%;
+      background:var(--bg);
+      border:1px solid var(--border);
+      border-radius:var(--r-lg);
+      touch-action:none; user-select:none;
+      position:relative; min-height:0;
+    }
+    .trackpad::after {
+      content:'';
+      position:absolute; inset:0;
+      border-radius:inherit;
+      background:radial-gradient(ellipse at 50% 50%, rgba(77,157,224,.04) 0%, transparent 70%);
+      pointer-events:none;
+    }
+    .mouse-btns { display:flex; gap:8px; width:100%; }
+    .mb {
+      flex:1; height:52px;
+      border:1px solid var(--border);
+      border-radius:var(--r-md);
+      background:var(--surface2);
+      color:var(--text);
+      font-family:'Sora',sans-serif;
+      font-size:.78rem; font-weight:500; letter-spacing:.05em;
+      cursor:pointer;
+      transition:background .12s, border-color .12s, transform .1s;
+    }
+    .mb:active { background:var(--accent-dim); border-color:var(--accent); transform:scale(.97); }
+
+    /* ── Bottom bar ─────────────────────────────────── */
+    .bot-bar {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+      border-top:1px solid var(--border);
+      flex-shrink:0;
+    }
+    .icon-btn {
+      width:52px; height:52px;
+      border-radius:var(--r-md);
+      border:1px solid var(--border);
+      background:var(--surface2);
+      color:var(--text); font-size:1.35rem;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer;
+      transition:background .12s, border-color .12s;
+    }
+    .icon-btn:active { background:var(--accent-dim); border-color:var(--accent); }
+
+    /* ── Keyboard overlay ────────────────────────────── */
+    .kb-overlay {
+      position:absolute; bottom:-100%; left:0; right:0;
+      background:#0b1220;
+      border-top:1px solid var(--border-hi);
+      border-radius:var(--r-xl) var(--r-xl) 0 0;
+      transition:bottom .34s cubic-bezier(.32,.72,0,1);
+      display:flex; flex-direction:column;
+      z-index:10;
+      padding-bottom:env(safe-area-inset-bottom);
+    }
+    .kb-overlay.open { bottom:0; }
+
+    .kb-drag { width:50px; height:15px; border-radius:2px; background:var(--text-muted); margin:10px auto 6px; opacity:.35; }
+
+    .kb-tabs {
+      display:flex; gap:5px; padding:0 12px 8px;
+    }
+    .kb-tab {
+      flex:1; padding:7px 0;
+      border-radius:var(--r-sm);
+      border:1px solid var(--border);
+      background:transparent;
+      color:var(--text-muted);
+      font-family:'Sora',sans-serif;
+      font-size:.66rem; font-weight:600; letter-spacing:.1em; text-transform:uppercase;
+      cursor:pointer; transition:all .18s;
+    }
+    .kb-tab.active { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
+
+    .kb-pane { display:none; flex-direction:column; gap:5px; padding:0 8px 8px; }
+    .kb-pane.active { display:flex; }
+
+    .krow { display:flex; gap:5px; justify-content:center; }
+
+    /* Keys */
+    .k {
+      flex:1; height:43px; min-width:0;
+      border-radius:var(--r-sm);
+      border:1px solid rgba(255,255,255,.055);
+      background:var(--key-bg);
+      color:var(--text);
+      font-family:'Sora',sans-serif;
+      font-size:.84rem; font-weight:500;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; user-select:none;
+      transition:background .1s, transform .08s, border-color .1s;
+    }
+    .k:active, .k.pressed {
+      background:var(--accent-dim);
+      border-color:var(--accent);
+      transform:scale(.9);
+    }
+    .k.sp      { background:var(--key-sp); flex:1.5; font-size:.74rem; }
+    .k.sp2     { background:var(--key-sp); flex:2;   font-size:.74rem; }
+    .k.spacer  { background:var(--key-sp); flex:4;   font-size:.62rem; letter-spacing:.1em; color:var(--text-muted); }
+    .k.shift-on { background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
+
+    /* Special pane */
+    .arrow-pad {
+      display:grid;
+      grid-template-columns:repeat(3,52px);
+      grid-template-rows:repeat(2,43px);
+      gap:5px; margin:0 auto 6px;
+    }
+    .arrow-pad .k { flex:none; width:52px; }
+    .util-row { display:flex; gap:5px; }
+    .fn-grid  { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; }
+    .fn-grid .k { font-size:.7rem; }
+
+    /* ── Menu overlay ───────────────────────────────── */
+    .menu-overlay {
+      position:absolute; inset:0;
+      background:rgba(6,10,18,.88);
+      backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      z-index:20; opacity:0; pointer-events:none; transition:opacity .22s;
+    }
+    .menu-overlay.open { opacity:1; pointer-events:all; }
+    .menu-card {
+      background:var(--surface2);
+      border:1px solid var(--border-hi);
+      border-radius:var(--r-xl);
+      padding:20px 14px;
+      width:calc(100% - 48px); max-width:300px;
+      display:flex; flex-direction:column; gap:9px;
+    }
+    .menu-head {
+      text-align:center;
+      font-size:.66rem; font-weight:600;
+      letter-spacing:.14em; text-transform:uppercase;
+      color:var(--text-muted); margin-bottom:4px;
+    }
+    .menu-btn {
+      padding:13px 14px;
+      border-radius:var(--r-md);
+      border:1px solid var(--border);
+      background:var(--surface3);
+      color:var(--text);
+      font-family:'Sora',sans-serif;
+      font-size:.88rem; font-weight:500;
+      cursor:pointer; text-align:left;
+      transition:background .12s, border-color .12s;
+    }
+    .menu-btn:active { background:var(--accent-dim); border-color:var(--accent); }
+    .menu-btn.danger { color:var(--danger); }
+    .menu-btn.danger:active { background:rgba(224,85,85,.15); border-color:var(--danger); }
   </style>
 </head>
 <body>
-  <h1>control</h1>
+<div class="wrap">
 
-  <div class="section">
-    <h2>Control de Volumen</h2>
-    <button onclick="sendCommand('volume','up')">🔊 +</button>
-    <button onclick="sendCommand('volume','down')">🔉 -</button>
-    <button onclick="sendCommand('volume','mute')">🔇</button>
-  </div>
-
-  <div class="section">
-    <h2>Reproductor</h2>
-    <button onclick="sendCommand('media','play_pause')">⏯️</button>
-    <button onclick="sendCommand('media','next')">⏭️</button>
-    <button onclick="sendCommand('media','prev')">⏮️</button>
-  </div>
-
-  <div class="section">
-    <h2>Teclado</h2>
-    <input type="text" id="keyboard-input" placeholder="Escribe algo..." />
-    <button onclick="sendKeyboard()">Enviar</button>
-  </div>
-
-  <div class="section">
-    <h2>Mouse (Trackpad)</h2>
-    <div id="trackpad"></div>
-    <div id="mouse-buttons">
-      <!-- La zona del botón izquierdo ahora se usa para iniciar el drag -->
-      <button id="left-btn">⏴</button>
-      <button id="right-btn" onclick="socket.emit('mouse_click', { button: 'right' })">⏵</button>
+  <div class="top-bar">
+    <span class="app-name">ZamudioPilot</span>
+    <div class="status">
+      <div class="dot off" id="dot"></div>
+      <span id="connLabel">Conectando…</span>
     </div>
   </div>
 
-  <script>
-    const socket = io();
+  <div class="controls">
+    <div class="group">
+      <span class="group-label">Vol</span>
+      <button class="cb" onclick="cmd('volume','up')">🔊</button>
+      <button class="cb" onclick="cmd('volume','mute')">🔇</button>
+      <button class="cb" onclick="cmd('volume','down')">🔈</button>
+    </div>
+    <div class="group">
+      <span class="group-label">Media</span>
+      <button class="cb" onclick="cmd('media','prev')">⏮</button>
+      <button class="cb" onclick="cmd('media','play_pause')">⏯</button>
+      <button class="cb" onclick="cmd('media','next')">⏭</button>
+    </div>
+    <div class="group">
+      <span class="group-label">Sistema</span>
+      <button class="cb" onclick="cmd('special','vid')">📽</button>
+      <button class="cb" onclick="cmd('special','cap')">📷</button>
+      <button class="cb" onclick="cmd('special','win')">🪟</button>
+    </div>
+  </div>
 
-    function sendCommand(type, data) {
-      socket.emit(type, data);
-    }
-    function sendKeyboard() {
-      const text = document.getElementById('keyboard-input').value;
-      socket.emit('keyboard', text);
-    }
+  <div class="tp-section">
+    <div id="trackpad" class="trackpad"></div>
+    <div class="mouse-btns">
+      <button id="left-btn" class="mb">Left Click</button>
+      <button class="mb" onclick="socket.emit('mouse_click',{button:'right'})">Right Click</button>
+    </div>
+  </div>
 
-    
-    let leftButtonDown = false;
-    const MOVE_THRESHOLD = 5;
+  <div class="bot-bar">
+    <button class="icon-btn" onclick="toggleMenu()">☰</button>
+    <button class="icon-btn" onclick="toggleKb()">⌨️</button>
+  </div>
 
-   
-    leftBtn.addEventListener('pointerdown', e => {
-      leftButtonDown = true;
-      socket.emit('mouse_down', { button: 'left' });
+  <!-- ── Keyboard ────────────────────────────────────── -->
+  <div id="kb" class="kb-overlay">
+    <div class="kb-drag"></div>
+    <div class="kb-tabs">
+      <button class="kb-tab active" data-pane="kb-abc">ABC</button>
+      <button class="kb-tab"        data-pane="kb-fn">FN</button>
+    </div>
+
+    <!-- QWERTY pane -->
+    <div id="kb-abc" class="kb-pane active">
+      <div class="krow">
+        <button class="k" data-key="1">1</button><button class="k" data-key="2">2</button>
+        <button class="k" data-key="3">3</button><button class="k" data-key="4">4</button>
+        <button class="k" data-key="5">5</button><button class="k" data-key="6">6</button>
+        <button class="k" data-key="7">7</button><button class="k" data-key="8">8</button>
+        <button class="k" data-key="9">9</button><button class="k" data-key="0">0</button>
+      </div>
+      <div class="krow">
+        <button class="k" data-key="q">q</button><button class="k" data-key="w">w</button>
+        <button class="k" data-key="e">e</button><button class="k" data-key="r">r</button>
+        <button class="k" data-key="t">t</button><button class="k" data-key="y">y</button>
+        <button class="k" data-key="u">u</button><button class="k" data-key="i">i</button>
+        <button class="k" data-key="o">o</button><button class="k" data-key="p">p</button>
+      </div>
+      <div class="krow">
+        <button class="k" data-key="a">a</button><button class="k" data-key="s">s</button>
+        <button class="k" data-key="d">d</button><button class="k" data-key="f">f</button>
+        <button class="k" data-key="g">g</button><button class="k" data-key="h">h</button>
+        <button class="k" data-key="j">j</button><button class="k" data-key="k">k</button>
+        <button class="k" data-key="l">l</button>
+      </div>
+      <div class="krow">
+        <button class="k sp" id="shift-btn">⇧</button>
+        <button class="k" data-key="z">z</button><button class="k" data-key="x">x</button>
+        <button class="k" data-key="c">c</button><button class="k" data-key="v">v</button>
+        <button class="k" data-key="b">b</button><button class="k" data-key="n">n</button>
+        <button class="k" data-key="m">m</button>
+        <button class="k sp" data-key="Backspace">⌫</button>
+      </div>
+      <div class="krow">
+        <button class="k sp" data-key="Tab">⇥</button>
+        <button class="k spacer" data-key="space">SPACE</button>
+        <button class="k sp2" data-key="Enter">↵</button>
+      </div>
+    </div>
+
+    <!-- FN / Special pane -->
+    <div id="kb-fn" class="kb-pane">
+      <div class="arrow-pad">
+        <div></div>
+        <button class="k" data-sp="up">↑</button>
+        <div></div>
+        <button class="k" data-sp="left">←</button>
+        <button class="k" data-sp="down">↓</button>
+        <button class="k" data-sp="right">→</button>
+      </div>
+      <div class="util-row">
+        <button class="k sp" data-sp="esc">Esc</button>
+        <button class="k sp" data-sp="prtsc">PrtSc</button>
+        <button class="k sp" data-sp="copy">Copy</button>
+        <button class="k sp" data-sp="paste">Paste</button>
+      </div>
+      <div class="fn-grid">
+        <button class="k" data-sp="f1">F1</button><button class="k" data-sp="f2">F2</button>
+        <button class="k" data-sp="f3">F3</button><button class="k" data-sp="f4">F4</button>
+        <button class="k" data-sp="f5">F5</button><button class="k" data-sp="f6">F6</button>
+        <button class="k" data-sp="f7">F7</button><button class="k" data-sp="f8">F8</button>
+        <button class="k" data-sp="f9">F9</button><button class="k" data-sp="f10">F10</button>
+        <button class="k" data-sp="f11">F11</button><button class="k" data-sp="f12">F12</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Menu ──────────────────────────────────────────── -->
+  <div id="menu" class="menu-overlay">
+    <div class="menu-card">
+      <div class="menu-head">ZamudioPilot</div>
+      <button class="menu-btn" onclick="go('/')">🏠 Inicio</button>
+      <button class="menu-btn" onclick="go('/mouse')">🖱 Solo Mouse</button>
+      <button class="menu-btn" onclick="cmd('special','suspend');toggleMenu()">💤 Reposo</button>
+      <button class="menu-btn danger" onclick="cmd('special','off');toggleMenu()">⏻ Apagar PC</button>
+      <button class="menu-btn" onclick="toggleMenu()">✕ Cerrar</button>
+    </div>
+  </div>
+
+</div><!-- .wrap -->
+
+<script src="/static/trackpad.js"></script>
+<script>
+  const socket = io();
+  const dot   = document.getElementById('dot');
+  const label = document.getElementById('connLabel');
+  socket.on('connect',    () => { dot.classList.remove('off'); label.textContent = 'Conectado'; });
+  socket.on('disconnect', () => { dot.classList.add('off');    label.textContent = 'Sin conexión'; });
+
+  const cmd = (t, d) => socket.emit(t, d);
+  const go  = url => window.location.href = url;
+
+  // ── Menu ──────────────────────────────────────────────
+  const menu = document.getElementById('menu');
+  function toggleMenu() { menu.classList.toggle('open'); }
+
+  // ── Keyboard ──────────────────────────────────────────
+  const kb = document.getElementById('kb');
+  function toggleKb() { kb.classList.toggle('open'); }
+
+  document.querySelectorAll('.kb-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.kb-tab').forEach(x => x.classList.remove('active'));
+      document.querySelectorAll('.kb-pane').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      document.getElementById(t.dataset.pane).classList.add('active');
     });
-    leftBtn.addEventListener('pointerup', e => {
-      leftButtonDown = false;
-      socket.emit('mouse_up', { button: 'left' });
+  });
+
+  // ── Shift ─────────────────────────────────────────────
+  const SYM = {'1':'!','2':'@','3':'#','4':'$','5':'%','6':'^','7':'&','8':'*','9':'(','0':')'};
+  let shifted = false;
+  const shiftBtn = document.getElementById('shift-btn');
+
+  function toggleShift() {
+    shifted = !shifted;
+    shiftBtn.classList.toggle('shift-on', shifted);
+    document.querySelectorAll('#kb-abc .k[data-key]').forEach(b => {
+      const k = b.dataset.key;
+      if (!k || k.length !== 1) return;
+      b.textContent = shifted
+        ? (/[a-z]/.test(k) ? k.toUpperCase() : (SYM[k] ?? k))
+        : k;
     });
-   
-    const trackpad = document.getElementById('trackpad');
-    let pointers = new Map();
-    let initialTouch = null;    
-    let didMove = false;       
-    let twoFingerTap = false, gestureStart = 0, initialPositions = new Map();
-    let lastScrollY = 0;
-    const TAP_TIME = 200;  
+  }
 
-    trackpad.addEventListener('pointerdown', e => {
-      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      trackpad.setPointerCapture(e.pointerId);
+  // ── Tap feedback ──────────────────────────────────────
+  function flash(el) {
+    el.classList.add('pressed');
+    setTimeout(() => el.classList.remove('pressed'), 110);
+    if (navigator.vibrate) navigator.vibrate(16);
+  }
 
-      if (pointers.size === 1) {
-        
-        initialTouch = { x: e.clientX, y: e.clientY };
-        didMove = false;
-      } else if (pointers.size === 2) {
-       
-        twoFingerTap = true;
-        gestureStart = Date.now();
-        initialPositions = new Map(pointers);
-        const ys = Array.from(pointers.values()).map(p => p.y);
-        lastScrollY = (ys[0] + ys[1]) / 2;
+  // ── Alpha events ──────────────────────────────────────
+  document.getElementById('kb-abc').addEventListener('click', e => {
+    const b = e.target.closest('.k'); if (!b) return; flash(b);
+    if (b.id === 'shift-btn') { toggleShift(); return; }
+    const k = b.dataset.key; if (!k) return;
+    if (k === 'space')     { cmd('special','space'); return; }
+    if (k === 'Backspace') { socket.emit('keyboard','Backspace'); return; }
+    if (k === 'Enter')     { socket.emit('keyboard','Enter'); return; }
+    if (k === 'Tab')       { socket.emit('keyboard','Tab'); return; }
+    let out = k;
+    if (shifted && k.length === 1)
+      out = /[a-z]/.test(k) ? k.toUpperCase() : (SYM[k] ?? k);
+    socket.emit('keyboard', out);
+  });
+
+  // ── FN events ─────────────────────────────────────────
+  document.getElementById('kb-fn').addEventListener('click', e => {
+    const b = e.target.closest('.k'); if (!b || !b.dataset.sp) return;
+    flash(b); cmd('special', b.dataset.sp);
+  });
+
+  // ── Cerrar teclado: swipe down en zona superior ───────
+  const kbTop = document.querySelector('.kb-drag');   // sigue siendo el handle visual
+  let dragStartY = null;
+  let isDragging = false;
+
+  // Agrega zona de toque más grande: el header completo del kb
+  const kbHeader = document.createElement('div');
+  kbHeader.style.cssText = 'position:absolute;top:0;left:0;right:0;height:52px;z-index:11;touch-action:none;';
+  kb.appendChild(kbHeader);
+
+  function initKbDrag(el) {
+    el.addEventListener('pointerdown', e => {
+      dragStartY = e.clientY;
+      isDragging = false;
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', e => {
+      if (dragStartY === null) return;
+      const dy = e.clientY - dragStartY;
+      if (dy > 8) isDragging = true;
+      if (isDragging) {
+        const clamp = Math.max(0, dy);
+        kb.style.transition = 'none';
+        kb.style.transform  = `translateY(${clamp}px)`;
       }
     });
-
-    trackpad.addEventListener('pointermove', e => {
-      if (!pointers.has(e.pointerId)) return;
-      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-
-      if (pointers.size === 2) {
-       
-        if (twoFingerTap) {
-          const init = initialPositions.get(e.pointerId);
-          if (Math.hypot(e.clientX - init.x, e.clientY - init.y) > MOVE_THRESHOLD) {
-            twoFingerTap = false;
-          }
-        }
-        const ys = Array.from(pointers.values()).map(p => p.y);
-        const avgY = (ys[0] + ys[1]) / 2;
-        const dy = avgY - lastScrollY;
-        lastScrollY = avgY;
-        socket.emit('mouse_scroll', { dy: -dy });
-      } else if (pointers.size === 1) {
-       
-        if (initialTouch) {
-          const dx = e.clientX - initialTouch.x;
-          const dy = e.clientY - initialTouch.y;
-          if (Math.hypot(dx, dy) > MOVE_THRESHOLD) {
-            didMove = true;
-          }
-        }
-       
-        socket.emit('mouse_move', { dx: e.movementX, dy: e.movementY });
-      }
+    el.addEventListener('pointerup', e => {
+      if (dragStartY === null) return;
+      const dy = e.clientY - dragStartY;
+      kb.style.transition = '';
+      kb.style.transform  = '';
+      if (dy > 50) toggleKb();
+      dragStartY = null;
+      isDragging = false;
     });
-
-    trackpad.addEventListener('pointerup', e => {
-      pointers.delete(e.pointerId);
-      trackpad.releasePointerCapture(e.pointerId);
-
-      if (pointers.size === 0) {
-      
-        if (!leftButtonDown && !didMove) {
-          socket.emit('mouse_click', { button: 'left' });
-        }
-        
-        if (twoFingerTap && (Date.now() - gestureStart) < TAP_TIME) {
-          socket.emit('mouse_click', { button: 'right' });
-        }
-
-        initialTouch = null;
-        didMove = false;
-        twoFingerTap = false;
-      }
+    el.addEventListener('pointercancel', () => {
+      kb.style.transition = '';
+      kb.style.transform  = '';
+      dragStartY = null;
+      isDragging = false;
     });
+  }
 
-    trackpad.addEventListener('pointercancel', e => {
-      pointers.clear();
-      trackpad.releasePointerCapture(e.pointerId);
-      initialTouch = null;
-      didMove = false;
-      twoFingerTap = false;
-    });
-  </script>
+  initKbDrag(kbHeader);
+
+  // doble tap en el handle también cierra
+  let lastTap = 0;
+  kbTop.addEventListener('touchend', () => {
+    const now = Date.now();
+    if (now - lastTap < 300) toggleKb();
+    lastTap = now;
+  });
+
+
+
+  // ── Trackpad ──────────────────────────────────────────
+  initTrackpad('trackpad', 'left-btn');
+</script>
 </body>
 </html>
